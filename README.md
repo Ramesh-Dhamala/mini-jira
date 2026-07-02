@@ -209,7 +209,7 @@ This project is actively being developed and continuously improved. New features
 
 **Ramesh Dhamala**
 
-BCA Student | Full Stack Developer | Open Source Learner
+Computer Engineering Student | Machine Learning enthusiast | Full Stack Developer | Open Source Learner
 
 ---
 

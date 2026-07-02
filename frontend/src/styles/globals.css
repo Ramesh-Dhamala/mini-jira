@@ -1,0 +1,11 @@
+:root {
+  --mini-jira-background: #0f172a;
+  --mini-jira-card: #1e293b;
+  --mini-jira-border: #334155;
+  --mini-jira-primary: #6366f1;
+  --mini-jira-success: #22c55e;
+  --mini-jira-warning: #f59e0b;
+  --mini-jira-danger: #ef4444;
+  --mini-jira-text: #ffffff;
+  --mini-jira-secondary-text: #94a3b8;
+}

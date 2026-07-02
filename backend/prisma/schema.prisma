@@ -1,0 +1,306 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./mini-jira.db"
+}
+
+// ==================== ENUMS ====================
+
+enum Role {
+  ADMIN
+  MANAGER
+  MEMBER
+  DEVELOPER
+  VIEWER
+}
+
+enum SprintStatus {
+  PLANNING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum TicketStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+}
+
+enum TicketType {
+  TASK
+  BUG
+  STORY
+  EPIC
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  COMPLETED
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+enum ActivityType {
+  CREATED
+  UPDATED
+  DELETED
+  STATUS_CHANGED
+  ASSIGNED
+  COMMENTED
+  ATTACHED
+}
+
+enum FollowStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  password      String
+  role          Role           @default(MEMBER)
+  avatar        String?
+  bio           String?   
+  refreshToken  String?
+  
+  // Relations
+  projectsCreated Project[]    @relation("CreatedProjects")
+  projectsMember  Project[]    @relation("MemberProjects")
+  ticketsAssigned Ticket[]     @relation("AssignedTickets")
+  ticketsCreated  Ticket[]     @relation("CreatedTickets")
+  comments        Comment[]
+  activities      Activity[]
+  notifications   Notification[]
+  attachments     Attachment[]
+  sessions        Session[]
+  auditLogs       AuditLog[]
+  
+  // ✅ Follow relations
+  followers  Follow[] @relation("Following")
+  following  Follow[] @relation("Followers")
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("users")
+}
+
+model Project {
+  id            String         @id @default(cuid())
+  name          String
+  description   String?
+  status        ProjectStatus  @default(ACTIVE)
+  progress      Int            @default(0)
+  dueDate       DateTime?
+  
+  // Relations
+  createdById   String
+  createdBy     User           @relation("CreatedProjects", fields: [createdById], references: [id])
+  members       User[]         @relation("MemberProjects")
+  sprints       Sprint[]
+  tickets       Ticket[]
+  activities    Activity[]
+  notifications Notification[]
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("projects")
+}
+
+model Sprint {
+  id            String         @id @default(cuid())
+  name          String
+  goal          String?
+  startDate     DateTime
+  endDate       DateTime
+  status        SprintStatus   @default(PLANNING)
+  
+  // Relations
+  projectId     String
+  project       Project        @relation(fields: [projectId], references: [id])
+  tickets       Ticket[]
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("sprints")
+}
+
+model Ticket {
+  id            String         @id @default(cuid())
+  title         String
+  description   String?
+  storyPoints   Int            @default(0)
+  
+  // Enums
+  type          TicketType     @default(TASK)
+  priority      Priority       @default(MEDIUM)
+  status        TicketStatus   @default(TODO)
+  
+  // Relations
+  assigneeId    String?
+  assignee      User?          @relation("AssignedTickets", fields: [assigneeId], references: [id])
+  createdById   String
+  createdBy     User           @relation("CreatedTickets", fields: [createdById], references: [id])
+  projectId     String
+  project       Project        @relation(fields: [projectId], references: [id])
+  sprintId      String?
+  sprint        Sprint?        @relation(fields: [sprintId], references: [id])
+  
+  comments      Comment[]
+  attachments   Attachment[]
+  activities    Activity[]
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("tickets")
+}
+
+model Comment {
+  id            String         @id @default(cuid())
+  content       String
+  isEdited      Boolean        @default(false)
+  
+  // Relations
+  userId        String
+  user          User           @relation(fields: [userId], references: [id])
+  ticketId      String
+  ticket        Ticket         @relation(fields: [ticketId], references: [id])
+  parentId      String?
+  parent        Comment?       @relation("CommentReplies", fields: [parentId], references: [id])
+  replies       Comment[]      @relation("CommentReplies")
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("comments")
+}
+
+model Attachment {
+  id            String         @id @default(cuid())
+  fileName      String
+  fileUrl       String
+  fileSize      Int
+  mimeType      String
+  
+  // Relations
+  ticketId      String
+  ticket        Ticket         @relation(fields: [ticketId], references: [id])
+  uploadedById  String
+  uploadedBy    User           @relation(fields: [uploadedById], references: [id])
+
+  createdAt     DateTime       @default(now())
+
+  @@map("attachments")
+}
+
+model Activity {
+  id            String         @id @default(cuid())
+  action        String
+  type          ActivityType   @default(CREATED)
+  metadata      Json?
+  
+  // Relations
+  userId        String
+  user          User           @relation(fields: [userId], references: [id])
+  ticketId      String?
+  ticket        Ticket?        @relation(fields: [ticketId], references: [id])
+  projectId     String?
+  project       Project?       @relation(fields: [projectId], references: [id])
+
+  createdAt     DateTime       @default(now())
+
+  @@map("activities")
+}
+
+model Notification {
+  id            String         @id @default(cuid())
+  message       String
+  type          NotificationType @default(INFO)
+  read          Boolean        @default(false)
+  link          String?
+  metadata      Json?
+  
+  // Relations
+  userId        String
+  user          User           @relation(fields: [userId], references: [id])
+  ticketId      String?
+  projectId     String?
+  project       Project?       @relation(fields: [projectId], references: [id])
+
+  createdAt     DateTime       @default(now())
+
+  @@map("notifications")
+}
+
+// ==================== FOLLOW SYSTEM ====================
+
+model Follow {
+  id          String         @id @default(cuid())
+  followerId  String
+  followingId String
+  status      FollowStatus   @default(PENDING)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  follower    User           @relation("Followers", fields: [followerId], references: [id])
+  following   User           @relation("Following", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+// ==================== OPTIONAL: SESSIONS ====================
+
+model Session {
+  id          String         @id @default(cuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id])
+  token       String         @unique
+  expiresAt   DateTime
+  createdAt   DateTime       @default(now())
+
+  @@map("sessions")
+}
+
+// ==================== OPTIONAL: AUDIT LOGS ====================
+
+model AuditLog {
+  id          String         @id @default(cuid())
+  action      String
+  entity      String
+  entityId    String
+  changes     Json?
+  ipAddress   String?
+  userAgent   String?
+  userId      String?
+  user        User?          @relation(fields: [userId], references: [id])
+  createdAt   DateTime       @default(now())
+
+  @@map("audit_logs")
+}
